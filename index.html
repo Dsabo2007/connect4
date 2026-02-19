@@ -464,26 +464,64 @@
     <div class="bg-blobs" id="blobs"></div>
     <div class="floating-discs" id="floating-discs"></div>
 
-    <!-- Start Screen -->
+    <!-- Main Start Screen -->
     <div id="start-screen" class="screen active">
         <div class="logo">
             <h1>CONNECT 4</h1>
             <p>التحدي الذكي.. أونلاين!</p>
         </div>
+        <button class="btn btn-primary" onclick="app.showScreen('mode-selection-screen')"
+            style="font-size: 2rem; padding: 20px;">
+            <span>🎮</span> العب
+        </button>
+    </div>
 
-        <div class="input-group">
-            <input type="text" id="player-name" placeholder="أدخل اسمك هنا" maxlength="12">
+    <!-- Mode Selection Screen -->
+    <div id="mode-selection-screen" class="screen">
+        <div class="logo">
+            <h2>اختر نمط اللعب</h2>
         </div>
+        <button class="btn btn-primary" onclick="app.showScreen('difficulty-selection-screen')">
+            <span>🤖</span> لعب فردي (ضد الكمبيوتر)
+        </button>
+        <button class="btn btn-outline" onclick="app.showScreen('multiplayer-menu-screen')">
+            <span>🌐</span> لعب أونلاين (مع صديق)
+        </button>
+        <button class="btn btn-outline" onclick="app.showScreen('start-screen')"
+            style="margin-top: 20px; border-color: #666; color: #ccc;">رجوع</button>
+    </div>
 
+    <!-- Difficulty Selection Screen -->
+    <div id="difficulty-selection-screen" class="screen">
+        <div class="logo">
+            <h2>اختر مستوى الصعوبة</h2>
+        </div>
+        <button class="btn btn-outline" onclick="app.startSinglePlayer('easy')"
+            style="border-color: #4cd964; color: #4cd964;">سهل (مبتدئ)</button>
+        <button class="btn btn-outline" onclick="app.startSinglePlayer('medium')"
+            style="border-color: #ffcc00; color: #ffcc00;">متوسط (لاعب جيد)</button>
+        <button class="btn btn-outline" onclick="app.startSinglePlayer('hard')"
+            style="border-color: #ff3b30; color: #ff3b30;">صعب (محترف)</button>
+        <button class="btn btn-outline" onclick="app.showScreen('mode-selection-screen')"
+            style="margin-top: 20px; border-color: #666; color: #ccc;">رجوع</button>
+    </div>
+
+    <!-- Multiplayer Menu Screen -->
+    <div id="multiplayer-menu-screen" class="screen">
+        <div class="logo">
+            <h2>لعب أونلاين</h2>
+        </div>
+        <div class="input-group">
+            <input type="text" id="player-name-online" placeholder="أدخل اسمك هنا" maxlength="12">
+        </div>
         <button class="btn btn-primary" onclick="app.showCreateRoom()">
             <span>➕</span> إنشاء غرفة جديدة
-        </button>
-        <button class="btn btn-outline" onclick="app.startSinglePlayer()">
-            <span>🤖</span> لعب فردي (ضد الكمبيوتر)
         </button>
         <button class="btn btn-outline" onclick="app.showJoinRoom()">
             <span>🔗</span> انضمام لغرفة
         </button>
+        <button class="btn btn-outline" onclick="app.showScreen('mode-selection-screen')"
+            style="margin-top: 20px; border-color: #666; color: #ccc;">رجوع</button>
     </div>
 
     <!-- Create Room Screen -->
@@ -498,8 +536,10 @@
             </div>
         </div>
 
-        <div class="spinner"></div>
-        <p>بانتظار انضمام الخصم...</p>
+        <div style="margin: 20px 0; display: flex; flex-direction: column; align-items: center;">
+            <div class="spinner" style="margin-bottom: 10px;"></div>
+            <p>بانتظار انضمام الخصم...</p>
+        </div>
 
         <button class="btn btn-outline" style="margin-top: 2rem;" onclick="app.resetToStart()">إلغاء</button>
     </div>
@@ -513,7 +553,7 @@
         </div>
 
         <button class="btn btn-primary" onclick="app.joinRoom()">دخول الغرفة</button>
-        <button class="btn btn-outline" onclick="app.resetToStart()">رجوع</button>
+        <button class="btn btn-outline" onclick="app.showScreen('multiplayer-menu-screen')">رجوع</button>
     </div>
 
     <!-- Game Screen -->
@@ -593,6 +633,7 @@
             playerName: '',
             roomCode: '',
             isSinglePlayer: false,
+            difficulty: 'medium', // easy, medium, hard
             isHost: false,
             role: '', // 'red' or 'yellow'
             myTurn: false,
@@ -639,7 +680,10 @@
 
             setupInputs() {
                 // Auto-fill random name if empty
-                document.getElementById('player-name').value = "Player_" + Math.floor(Math.random() * 9999);
+                const nameEl = document.getElementById('player-name-online');
+                if (nameEl) {
+                    nameEl.value = "Player_" + Math.floor(Math.random() * 9999);
+                }
             },
 
             generateBoard() {
@@ -663,7 +707,7 @@
             },
 
             showCreateRoom() {
-                this.playerName = document.getElementById('player-name').value || 'لاعب مجهول';
+                this.playerName = document.getElementById('player-name-online').value || 'لاعب مجهول';
                 this.roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
                 this.isHost = true;
                 this.role = 'red';
@@ -688,8 +732,9 @@
                 }
             },
 
-            startSinglePlayer() {
-                this.playerName = document.getElementById('player-name').value || 'لاعب 1';
+            startSinglePlayer(diff) {
+                this.playerName = 'أنت';
+                this.difficulty = diff || 'medium';
                 this.isSinglePlayer = true;
                 this.isHost = true;
                 this.role = 'red';
@@ -700,16 +745,21 @@
                     turn: 'red',
                     scores: { red: 0, yellow: 0 },
                     status: 'playing',
-                    p1: { name: this.playerName },
-                    p2: { name: 'الكمبيوتر' }
+                    p1: { name: 'أنت' },
+                    p2: { name: 'الكمبيوتر (' + this.getDifficultyLabel(diff) + ')' }
                 };
 
                 this.showScreen('game-screen');
                 this.updateUI();
             },
 
+            getDifficultyLabel(diff) {
+                const labels = { 'easy': 'سهل', 'medium': 'متوسط', 'hard': 'صعب' };
+                return labels[diff] || 'متوسط';
+            },
+
             showJoinRoom() {
-                this.playerName = document.getElementById('player-name').value || 'لاعب مجهول';
+                this.playerName = document.getElementById('player-name-online').value || 'لاعب مجهول';
                 this.showScreen('join-room-screen');
             },
 
@@ -907,17 +957,24 @@
                 const board = this.gameState.board;
                 let moveCol = -1;
 
-                // 1. Try to win
-                for (let c = 0; c < 7; c++) {
-                    const r = this.getLowestRow(c);
-                    if (r !== -1) {
-                        board[r][c] = 2; // AI is Yellow (2)
-                        if (this.checkWin(r, c, 2)) {
-                            moveCol = c;
-                            board[r][c] = 0; // Backtrack
-                            break;
+                // Easy mode: 40% chance of random move even if a win/block exists
+                if (this.difficulty === 'easy' && Math.random() < 0.4) {
+                    moveCol = this.getRandomValidMove();
+                }
+
+                if (moveCol === -1) {
+                    // 1. Try to win
+                    for (let c = 0; c < 7; c++) {
+                        const r = this.getLowestRow(c);
+                        if (r !== -1) {
+                            board[r][c] = 2; // AI is Yellow (2)
+                            if (this.checkWin(r, c, 2)) {
+                                moveCol = c;
+                                board[r][c] = 0; // Backtrack
+                                break;
+                            }
+                            board[r][c] = 0;
                         }
-                        board[r][c] = 0;
                     }
                 }
 
@@ -937,13 +994,35 @@
                     }
                 }
 
-                // 3. Strategic move (Center preference)
+                // 3. Strategic move (Hard mode prefers center and setups)
                 if (moveCol === -1) {
-                    const centerOrder = [3, 2, 4, 1, 5, 0, 6];
-                    for (let c of centerOrder) {
-                        if (this.getLowestRow(c) !== -1) {
-                            moveCol = c;
-                            break;
+                    if (this.difficulty === 'hard') {
+                        // Priority for center and moves that lead to potential wins
+                        const centerOrder = [3, 2, 4, 1, 5, 0, 6];
+                        for (let c of centerOrder) {
+                            const r = this.getLowestRow(c);
+                            if (r !== -1) {
+                                // Basic heuristic: avoid moves that give player a win on top
+                                if (r > 0) {
+                                    board[r - 1][c] = 1;
+                                    if (this.checkWin(r - 1, c, 1)) {
+                                        board[r - 1][c] = 0;
+                                        continue;
+                                    }
+                                    board[r - 1][c] = 0;
+                                }
+                                moveCol = c;
+                                break;
+                            }
+                        }
+                    } else {
+                        // Medium/Easy fallback
+                        const centerOrder = [3, 2, 4, 1, 5, 0, 6];
+                        for (let c of centerOrder) {
+                            if (this.getLowestRow(c) !== -1) {
+                                moveCol = c;
+                                break;
+                            }
                         }
                     }
                 }
@@ -965,6 +1044,14 @@
                     this.gameState.turn = 'red';
                     this.updateUI();
                 }
+            },
+
+            getRandomValidMove() {
+                const validCols = [];
+                for (let c = 0; c < 7; c++) {
+                    if (this.getLowestRow(c) !== -1) validCols.push(c);
+                }
+                return validCols[Math.floor(Math.random() * validCols.length)];
             },
 
             getLowestRow(c) {
