@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect 4 Online - كونيكت 4 أونلاين</title>
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=Tajawal:wght@400;700&display=swap"
+        rel="stylesheet">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --primary-blue: #0A84FF;
+            --accent-blue: #5AC8FA;
+            --board-blue: #1C3A5A;
+            --p1-red: #FF3B30;
+            --p2-yellow: #FFCC00;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --neon-shadow: 0 0 15px rgba(10, 132, 255, 0.6);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Tajawal', 'Outfit', sans-serif;
+        }
+
+        body {
+            background: #050A18;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Animated Background */
+        .bg-blobs {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .blob {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: var(--primary-blue);
+            filter: blur(50px);
+            opacity: 0.3;
+            border-radius: 50%;
+            animation: move 20s infinite alternate;
+        }
+
+        @keyframes move {
+            0% {
+                transform: translate(0, 0);
+            }
+
+            100% {
+                transform: translate(400px, 400px);
+            }
+        }
+
+        /* Floating Discs Background */
+        .floating-discs {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .floating-disc {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            opacity: 0.15;
+            animation: float 15s infinite linear;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 0.2;
+            }
+
+            90% {
+                opacity: 0.2;
+            }
+
+            100% {
+                transform: translateY(-10vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Screens Management */
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 90%;
+            max-width: 500px;
+            padding: 2rem;
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Title & Logo */
+        .logo h1 {
+            font-size: 3rem;
+            font-family: 'Outfit';
+            text-shadow: var(--neon-shadow);
+            color: var(--primary-blue);
+            margin-bottom: 0.5rem;
+            letter-spacing: 2px;
+        }
+
+        .logo p {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 2rem;
+        }
+
+        /* Inputs & Buttons */
+        .input-group {
+            width: 100%;
+            margin-bottom: 1.5rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: #fff;
+            outline: none;
+            transition: all 0.3s;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        input:focus {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 10px rgba(10, 132, 255, 0.3);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: var(--primary-blue);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            filter: brightness(1.2);
+            transform: translateY(-2px);
+            box-shadow: var(--neon-shadow);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary-blue);
+            color: var(--primary-blue);
+        }
+
+        .btn-outline:hover {
+            background: var(--primary-blue);
+            color: #fff;
+        }
+
+        .copy-box {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        /* Game Board Styles */
+        #game-screen {
+            max-width: none;
+            width: auto;
+            background: transparent;
+            backdrop-filter: none;
+            border: none;
+            padding: 10px;
+        }
+
+        .board-container {
+            perspective: 1000px;
+            margin-top: 20px;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            background: var(--board-blue);
+            padding: 10px;
+            border-radius: 15px;
+            box-shadow:
+                0 10px 0 #0f1f33,
+                0 20px 30px rgba(0, 0, 0, 0.5);
+            position: relative;
+            transform: rotateX(10deg);
+        }
+
+        .cell {
+            width: 11vmin;
+            height: 11vmin;
+            background: #050A18;
+            border-radius: 50%;
+            margin: 5px;
+            box-shadow: inset 0 5px 10px rgba(0, 0, 0, 0.8);
+            position: relative;
+            cursor: pointer;
+        }
+
+        .disc {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            transform: translateY(-1000%);
+            transition: transform 0.5s cubic-bezier(0.47, 0, 0.745, 0.715);
+        }
+
+        .disc.placed {
+            transform: translateY(0);
+        }
+
+        .disc.red {
+            background: radial-gradient(circle at 30% 30%, #ff5e5e, #c21a1a);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .disc.yellow {
+            background: radial-gradient(circle at 30% 30%, #ffe066, #ccaa00);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Game HUD */
+        .game-hud {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto 1.5rem auto;
+            padding: 0.8rem 1.5rem;
+            background: var(--glass-bg);
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            gap: 15px;
+        }
+
+        .player-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .player-info.right {
+            align-items: flex-end;
+            text-align: right;
+        }
+
+        .player-info.left {
+            align-items: flex-start;
+            text-align: left;
+        }
+
+        .player-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .score-pill {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 2px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-family: 'Outfit';
+            font-size: 1.1rem;
+            color: #fff;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .indicator.red {
+            background: var(--p1-red);
+            box-shadow: 0 0 10px var(--p1-red);
+        }
+
+        .indicator.yellow {
+            background: var(--p2-yellow);
+            box-shadow: 0 0 10px var(--p2-yellow);
+        }
+
+        .turn-info {
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: 700;
+            padding: 5px 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 30px;
+            min-width: 140px;
+        }
+
+        /* Board Container */
+        .board-container {
+            perspective: 1200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            background: var(--board-blue);
+            padding: 8px;
+            border-radius: 12px;
+            box-shadow:
+                0 8px 0 #0f1f33,
+                0 15px 40px rgba(0, 0, 0, 0.6);
+            position: relative;
+            transform: rotateX(5deg);
+        }
+
+        .cell {
+            width: 10vmin;
+            height: 10vmin;
+            max-width: 70px;
+            max-height: 70px;
+            background: #050A18;
+            border-radius: 50%;
+            margin: 4px;
+            box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.8);
+            position: relative;
+            cursor: pointer;
+        }
+
+        /* Game Footer / Controls */
+        .game-controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 1.5rem;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .game-controls .btn {
+            width: auto;
+            min-width: 120px;
+            margin-bottom: 0;
+            padding: 10px 20px;
+            font-size: 1rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .cell {
+                width: 11.5vw;
+                height: 11.5vw;
+                margin: 2px;
+            }
+
+            .game-hud {
+                padding: 0.6rem 1rem;
+                gap: 8px;
+            }
+
+            .turn-info {
+                font-size: 0.9rem;
+                min-width: 100px;
+                padding: 4px 10px;
+            }
+
+            .score-pill {
+                font-size: 1rem;
+                padding: 2px 10px;
+            }
+
+            .player-header {
+                font-size: 0.8rem;
+            }
+
+            .game-controls .btn {
+                min-width: 100px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="bg-blobs" id="blobs"></div>
+    <div class="floating-discs" id="floating-discs"></div>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="screen active">
+        <div class="logo">
+            <h1>CONNECT 4</h1>
+            <p>التحدي الذكي.. أونلاين!</p>
+        </div>
+
+        <div class="input-group">
+            <input type="text" id="player-name" placeholder="أدخل اسمك هنا" maxlength="12">
+        </div>
+
+        <button class="btn btn-primary" onclick="app.showCreateRoom()">
+            <span>➕</span> إنشاء غرفة جديدة
+        </button>
+        <button class="btn btn-outline" onclick="app.startSinglePlayer()">
+            <span>🤖</span> لعب فردي (ضد الكمبيوتر)
+        </button>
+        <button class="btn btn-outline" onclick="app.showJoinRoom()">
+            <span>🔗</span> انضمام لغرفة
+        </button>
+    </div>
+
+    <!-- Create Room Screen -->
+    <div id="create-room-screen" class="screen">
+        <h2 style="margin-bottom: 1rem;">غرفتك جاهزة!</h2>
+        <p style="margin-bottom: 1.5rem; opacity: 0.8; text-align: center;">شارك الكود التالي مع صديقك للبدء:</p>
+
+        <div class="input-group">
+            <input type="text" id="room-code-display" readonly>
+            <div class="copy-box">
+                <button class="btn btn-primary" onclick="app.copyRoomCode()">نسخ الكود</button>
+            </div>
+        </div>
+
+        <div class="spinner"></div>
+        <p>بانتظار انضمام الخصم...</p>
+
+        <button class="btn btn-outline" style="margin-top: 2rem;" onclick="app.resetToStart()">إلغاء</button>
+    </div>
+
+    <!-- Join Room Screen -->
+    <div id="join-room-screen" class="screen">
+        <h2 style="margin-bottom: 1.5rem;">انضمام للعبة</h2>
+
+        <div class="input-group">
+            <input type="text" id="room-code-input" placeholder="أدخل كود الغرفة" maxlength="6">
+        </div>
+
+        <button class="btn btn-primary" onclick="app.joinRoom()">دخول الغرفة</button>
+        <button class="btn btn-outline" onclick="app.resetToStart()">رجوع</button>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen">
+        <div class="game-hud">
+            <div class="player-info right">
+                <div class="player-header">
+                    <div class="indicator red" id="p1-indicator"></div>
+                    <span id="p1-name-display">انتظار...</span>
+                </div>
+                <span class="score-pill" id="p1-score">0</span>
+            </div>
+
+            <div class="turn-info" id="status-text">دورانك!</div>
+
+            <div class="player-info left">
+                <div class="player-header">
+                    <span id="p2-name-display">انتظار...</span>
+                    <div class="indicator yellow" id="p2-indicator"></div>
+                </div>
+                <span class="score-pill" id="p2-score">0</span>
+            </div>
+        </div>
+
+        <div class="board-container">
+            <div class="board" id="board">
+                <!-- Cells will be generated here -->
+            </div>
+        </div>
+
+        <div class="game-controls">
+            <button class="btn btn-primary" onclick="app.handleResetRequest()" id="reset-btn">إعادة اللعب</button>
+            <button class="btn btn-outline" onclick="app.leaveRoom()"
+                style="border-color: #ff3b30; color: #ff3b30;">خروج</button>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <!-- Firebase App (v9 compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+    <script>
+        /**
+         * Connect 4 Online Multiplayer
+         * Built with Vanilla JS & Firebase
+         */
+
+        // --- FIREBASE CONFIGURATION ---
+        // استبدل هذه البيانات ببيانات مشروعك في Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBv8FhA6M7nXDxqnh85J1tTtGWx0lVCork",
+            authDomain: "connect4-game-b544e.firebaseapp.com",
+            projectId: "connect4-game-b544e",
+            storageBucket: "connect4-game-b544e.firebasestorage.app",
+            messagingSenderId: "633505346292",
+            appId: "1:633505346292:web:b68a89d848b085e910a4a1",
+            databaseURL: "https://connect4-game-b544e-default-rtdb.firebaseio.com"
+        };
+
+        // Initialize Firebase Safely
+        let db = null;
+        try {
+            if (typeof firebase !== 'undefined') {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.database();
+            } else {
+                console.warn("Firebase SDK not loaded. Only Single Player will be available.");
+            }
+        } catch (e) {
+            console.error("Firebase Initialization Failed:", e);
+        }
+
+        // --- APP LOGIC ---
+        const app = {
+            playerName: '',
+            roomCode: '',
+            isSinglePlayer: false,
+            isHost: false,
+            role: '', // 'red' or 'yellow'
+            myTurn: false,
+            gameState: {
+                board: Array(6).fill().map(() => Array(7).fill(0)), // 0: empty, 1: red, 2: yellow
+                turn: 'red',
+                scores: { red: 0, yellow: 0 },
+                status: 'waiting', // waiting, playing, finished
+                p1: null, // {name, id}
+                p2: null
+            },
+
+            init() {
+                this.createBackground();
+                this.generateBoard();
+                this.setupInputs();
+            },
+
+            createBackground() {
+                const blobs = document.getElementById('blobs');
+                const discs = document.getElementById('floating-discs');
+
+                // Create blurred blobs
+                for (let i = 0; i < 5; i++) {
+                    const blob = document.createElement('div');
+                    blob.className = 'blob';
+                    blob.style.left = Math.random() * 100 + '%';
+                    blob.style.top = Math.random() * 100 + '%';
+                    blob.style.animationDelay = Math.random() * 5 + 's';
+                    blobs.appendChild(blob);
+                }
+
+                // Create floating discs
+                for (let i = 0; i < 15; i++) {
+                    const disc = document.createElement('div');
+                    disc.className = 'floating-disc';
+                    disc.style.left = Math.random() * 100 + '%';
+                    disc.style.background = i % 2 === 0 ? 'var(--p1-red)' : 'var(--p2-yellow)';
+                    disc.style.animationDelay = Math.random() * 10 + 's';
+                    disc.style.animationDuration = (Math.random() * 10 + 5) + 's';
+                    discs.appendChild(disc);
+                }
+            },
+
+            setupInputs() {
+                // Auto-fill random name if empty
+                document.getElementById('player-name').value = "Player_" + Math.floor(Math.random() * 9999);
+            },
+
+            generateBoard() {
+                const boardEl = document.getElementById('board');
+                boardEl.innerHTML = '';
+                for (let r = 0; r < 6; r++) {
+                    for (let c = 0; c < 7; c++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.dataset.row = r;
+                        cell.dataset.col = c;
+                        cell.onclick = () => this.handleCellClick(c);
+                        boardEl.appendChild(cell);
+                    }
+                }
+            },
+
+            showScreen(id) {
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById(id).classList.add('active');
+            },
+
+            showCreateRoom() {
+                this.playerName = document.getElementById('player-name').value || 'لاعب مجهول';
+                this.roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+                this.isHost = true;
+                this.role = 'red';
+
+                document.getElementById('room-code-display').value = this.roomCode;
+                this.showScreen('create-room-screen');
+
+                if (db) {
+                    db.ref('rooms/' + this.roomCode).set({
+                        p1: { name: this.playerName, id: Date.now() },
+                        p2: null,
+                        board: JSON.stringify(Array(6).fill().map(() => Array(7).fill(0))),
+                        turn: 'red',
+                        scores: { red: 0, yellow: 0 },
+                        status: 'waiting',
+                        lastAction: 'created'
+                    });
+                    this.listenToRoom();
+                } else {
+                    this.toast("لا يمكن إنشاء غرفة أونلاين.. تأكد من إعدادات Firebase");
+                    this.resetToStart();
+                }
+            },
+
+            startSinglePlayer() {
+                this.playerName = document.getElementById('player-name').value || 'لاعب 1';
+                this.isSinglePlayer = true;
+                this.isHost = true;
+                this.role = 'red';
+                this.roomCode = 'LOCAL';
+
+                this.gameState = {
+                    board: Array(6).fill().map(() => Array(7).fill(0)),
+                    turn: 'red',
+                    scores: { red: 0, yellow: 0 },
+                    status: 'playing',
+                    p1: { name: this.playerName },
+                    p2: { name: 'الكمبيوتر' }
+                };
+
+                this.showScreen('game-screen');
+                this.updateUI();
+            },
+
+            showJoinRoom() {
+                this.playerName = document.getElementById('player-name').value || 'لاعب مجهول';
+                this.showScreen('join-room-screen');
+            },
+
+            joinRoom() {
+                const code = document.getElementById('room-code-input').value.toUpperCase();
+                if (!code) return this.toast("يرجى إدخال كود الغرفة");
+                if (!db) return this.toast("خدمة الأونلاين غير متاحة حالياً");
+
+                db.ref('rooms/' + code).once('value', snapshot => {
+                    if (!snapshot.exists()) {
+                        this.toast("الغرفة غير موجودة!");
+                    } else {
+                        const data = snapshot.val();
+                        if (data.p2) {
+                            this.toast("الغرفة ممتلئة!");
+                        } else {
+                            this.roomCode = code;
+                            this.isHost = false;
+                            this.role = 'yellow';
+
+                            // Update room with P2
+                            db.ref('rooms/' + code).update({
+                                p2: { name: this.playerName, id: Date.now() },
+                                status: 'playing',
+                                lastAction: 'joined'
+                            });
+
+                            this.listenToRoom();
+                        }
+                    }
+                });
+            },
+
+            listenToRoom() {
+                db.ref('rooms/' + this.roomCode).on('value', snapshot => {
+                    const data = snapshot.val();
+                    if (!data) {
+                        this.toast("تم إغلاق الغرفة من قبل المضيف");
+                        this.resetToStart();
+                        return;
+                    }
+
+                    // On Disconnect
+                    if (data.status === 'abandoned') {
+                        this.toast("لقد غادر الخصم اللعبة");
+                        this.leaveRoom();
+                        return;
+                    }
+
+                    this.gameState.board = JSON.parse(data.board);
+                    this.gameState.turn = data.turn;
+                    this.gameState.scores = data.scores;
+                    this.gameState.status = data.status;
+                    this.gameState.p1 = data.p1;
+                    this.gameState.p2 = data.p2;
+
+                    this.updateUI();
+
+                    // Switch to game screen if p2 joined
+                    if (data.p1 && data.p2 && data.status === 'playing' && document.getElementById('game-screen').className.indexOf('active') === -1) {
+                        this.showScreen('game-screen');
+                    }
+                });
+
+                // Set disconnect hook
+                if (db) {
+                    db.ref('rooms/' + this.roomCode).onDisconnect().update({
+                        status: 'abandoned'
+                    });
+                }
+            },
+
+            updateUI() {
+                const gs = this.gameState;
+
+                // Update names and scores
+                document.getElementById('p1-name-display').innerText = gs.p1 ? gs.p1.name : 'انتظار...';
+                document.getElementById('p2-name-display').innerText = gs.p2 ? gs.p2.name : 'انتظار...';
+                document.getElementById('p1-score').innerText = gs.scores.red;
+                document.getElementById('p2-score').innerText = gs.scores.yellow;
+
+                // Update Turn Info
+                const statusEl = document.getElementById('status-text');
+                this.myTurn = (gs.turn === this.role);
+
+                if (gs.status === 'finished') {
+                    const winner = gs.board.flat().includes(0) ? (gs.turn === 'red' ? 'Yellow' : 'Red') : 'Draw';
+                    if (this.isSinglePlayer) {
+                        statusEl.innerText = (gs.turn === 'yellow') ? "لقد فزت! 🎉" : "الكمبيوتر فاز! 🤖";
+                    } else {
+                        statusEl.innerText = "انتهت اللعبة!";
+                    }
+                } else {
+                    if (this.myTurn) {
+                        statusEl.innerText = "دورانك الآن! 🎮";
+                        statusEl.style.color = 'var(--accent-blue)';
+                    } else {
+                        const nextName = gs.turn === 'red' ? gs.p1.name : (gs.p2 ? gs.p2.name : 'انتظار...');
+                        statusEl.innerText = `انتظر دور ${nextName}`;
+                        statusEl.style.color = 'rgba(255,255,255,0.6)';
+                    }
+                }
+
+                // Render Board
+                this.renderBoard();
+            },
+
+            renderBoard() {
+                const board = this.gameState.board;
+                const cells = document.querySelectorAll('.cell');
+                cells.forEach(cell => {
+                    const r = cell.dataset.row;
+                    const c = cell.dataset.col;
+                    const val = board[r][c];
+
+                    let disc = cell.querySelector('.disc');
+                    if (val !== 0) {
+                        if (!disc) {
+                            disc = document.createElement('div');
+                            disc.className = `disc ${val === 1 ? 'red' : 'yellow'}`;
+                            cell.appendChild(disc);
+                            // Trigger drop animation
+                            setTimeout(() => disc.classList.add('placed'), 50);
+                        }
+                    } else if (disc) {
+                        disc.remove();
+                    }
+                });
+            },
+
+            handleCellClick(c) {
+                if (!this.myTurn || this.gameState.status !== 'playing') return;
+
+                // Find lowest empty row
+                let r = -1;
+                for (let row = 5; row >= 0; row--) {
+                    if (this.gameState.board[row][c] === 0) {
+                        r = row;
+                        break;
+                    }
+                }
+
+                if (r === -1) {
+                    this.toast("هذا العمود ممتلئ!");
+                    return;
+                }
+
+                // Place disc
+                this.gameState.board[r][c] = (this.role === 'red' ? 1 : 2);
+
+                // Check Win
+                const win = this.checkWin(r, c, (this.role === 'red' ? 1 : 2));
+
+                let nextStatus = 'playing';
+                let nextScores = { ...this.gameState.scores };
+
+                if (win) {
+                    nextStatus = 'finished';
+                    nextScores[this.role]++;
+                    this.celebrate();
+                } else if (this.checkDraw()) {
+                    nextStatus = 'finished';
+                    this.toast("تعادل!");
+                }
+
+                // Update State
+                const nextTurn = this.role === 'red' ? 'yellow' : 'red';
+
+                if (this.isSinglePlayer) {
+                    this.gameState.turn = nextTurn;
+                    this.gameState.status = nextStatus;
+                    this.gameState.scores = nextScores;
+                    this.updateUI();
+
+                    if (nextStatus === 'playing' && nextTurn === 'yellow') {
+                        setTimeout(() => this.makeAIMove(), 800);
+                    }
+                } else {
+                    // Update Firebase
+                    if (db) {
+                        db.ref('rooms/' + this.roomCode).update({
+                            board: JSON.stringify(this.gameState.board),
+                            turn: nextTurn,
+                            status: nextStatus,
+                            scores: nextScores,
+                            lastAction: 'move'
+                        });
+                    }
+                }
+            },
+
+            makeAIMove() {
+                if (this.gameState.status !== 'playing') return;
+
+                const board = this.gameState.board;
+                let moveCol = -1;
+
+                // 1. Try to win
+                for (let c = 0; c < 7; c++) {
+                    const r = this.getLowestRow(c);
+                    if (r !== -1) {
+                        board[r][c] = 2; // AI is Yellow (2)
+                        if (this.checkWin(r, c, 2)) {
+                            moveCol = c;
+                            board[r][c] = 0; // Backtrack
+                            break;
+                        }
+                        board[r][c] = 0;
+                    }
+                }
+
+                // 2. Block player win
+                if (moveCol === -1) {
+                    for (let c = 0; c < 7; c++) {
+                        const r = this.getLowestRow(c);
+                        if (r !== -1) {
+                            board[r][c] = 1; // Player is Red (1)
+                            if (this.checkWin(r, c, 1)) {
+                                moveCol = c;
+                                board[r][c] = 0;
+                                break;
+                            }
+                            board[r][c] = 0;
+                        }
+                    }
+                }
+
+                // 3. Strategic move (Center preference)
+                if (moveCol === -1) {
+                    const centerOrder = [3, 2, 4, 1, 5, 0, 6];
+                    for (let c of centerOrder) {
+                        if (this.getLowestRow(c) !== -1) {
+                            moveCol = c;
+                            break;
+                        }
+                    }
+                }
+
+                if (moveCol !== -1) {
+                    const r = this.getLowestRow(moveCol);
+                    this.gameState.board[r][moveCol] = 2;
+
+                    const win = this.checkWin(r, moveCol, 2);
+                    if (win) {
+                        this.gameState.status = 'finished';
+                        this.gameState.scores.yellow++;
+                        this.celebrate();
+                    } else if (this.checkDraw()) {
+                        this.gameState.status = 'finished';
+                        this.toast("تعادل!");
+                    }
+
+                    this.gameState.turn = 'red';
+                    this.updateUI();
+                }
+            },
+
+            getLowestRow(c) {
+                for (let row = 5; row >= 0; row--) {
+                    if (this.gameState.board[row][c] === 0) return row;
+                }
+                return -1;
+            },
+
+            checkWin(row, col, player) {
+                const board = this.gameState.board;
+
+                function check(r, c, dr, dc) {
+                    let count = 0;
+                    for (let i = -3; i <= 3; i++) {
+                        let nr = r + i * dr;
+                        let nc = c + i * dc;
+                        if (nr >= 0 && nr < 6 && nc >= 0 && nc < 7 && board[nr][nc] === player) {
+                            count++;
+                            if (count === 4) return true;
+                        } else {
+                            count = 0;
+                        }
+                    }
+                    return false;
+                }
+
+                return check(row, col, 0, 1) || // Horizontal
+                    check(row, col, 1, 0) || // Vertical
+                    check(row, col, 1, 1) || // Diagonal \
+                    check(row, col, 1, -1);  // Diagonal /
+            },
+
+            checkDraw() {
+                return this.gameState.board[0].every(cell => cell !== 0);
+            },
+
+            handleResetRequest() {
+                if (this.isSinglePlayer) {
+                    this.gameState.board = Array(6).fill().map(() => Array(7).fill(0));
+                    this.gameState.turn = 'red';
+                    this.gameState.status = 'playing';
+                    this.updateUI();
+                } else if (db) {
+                    db.ref('rooms/' + this.roomCode).update({
+                        board: JSON.stringify(Array(6).fill().map(() => Array(7).fill(0))),
+                        turn: 'red',
+                        status: 'playing',
+                        lastAction: 'reset'
+                    });
+                }
+                this.toast("تمت إعادة تهيئة اللوحة");
+            },
+
+            leaveRoom() {
+                if (!this.isSinglePlayer && this.roomCode && db) {
+                    db.ref('rooms/' + this.roomCode).remove();
+                }
+                this.resetToStart();
+            },
+
+            resetToStart() {
+                const oldCode = this.roomCode;
+                this.roomCode = '';
+                this.isSinglePlayer = false;
+                this.isHost = false;
+                this.role = '';
+                this.myTurn = false;
+                this.showScreen('start-screen');
+                // stop listening
+                if (oldCode && oldCode !== 'LOCAL' && db) db.ref('rooms/' + oldCode).off();
+            },
+
+            copyRoomCode() {
+                const code = document.getElementById('room-code-display').value;
+                navigator.clipboard.writeText(code).then(() => {
+                    this.toast("تم نسخ الكود بنجاح!");
+                });
+            },
+
+            celebrate() {
+                confetti({
+                    particleCount: 150,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: [this.role === 'red' ? '#ff3b30' : '#ffcc00', '#ffffff', '#0a84ff']
+                });
+                this.toast(`مبروك! فاز ${this.playerName}`);
+            },
+
+            toast(msg) {
+                const toastEl = document.getElementById('toast');
+                toastEl.innerText = msg;
+                toastEl.style.display = 'block';
+                setTimeout(() => {
+                    toastEl.style.display = 'none';
+                }, 3000);
+            }
+        };
+
+        // Start the app
+        app.init();
+
+    </script>
+</body>
+
+</html>
